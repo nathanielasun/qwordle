@@ -1,0 +1,325 @@
+/**
+ * Quantum Panel styles for QWordle
+ */
+
+/* Main panel container */
+.quantum-panel {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.quantum-panel--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Header */
+.quantum-panel__header {
+  padding: 0.75rem 1rem;
+  background: rgba(99, 102, 241, 0.1);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.quantum-panel__header:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.quantum-panel__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quantum-panel__icon {
+  font-size: 0.75rem;
+  color: var(--color-quantum-primary);
+}
+
+.quantum-panel__subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0.25rem 0 0 1.25rem;
+}
+
+/* Content area */
+.quantum-panel__content {
+  padding: 1rem;
+}
+
+.quantum-panel__description {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-quantum-primary);
+}
+
+.quantum-panel__description p {
+  margin: 0;
+}
+
+.quantum-panel__description strong {
+  color: var(--color-quantum-accent);
+}
+
+/* Gate palette section */
+.quantum-panel__gates {
+  margin-bottom: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Circuit canvas section */
+.quantum-panel__circuit {
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg);
+  overflow-x: auto;
+  min-height: 120px;
+}
+
+/* Controls */
+.quantum-panel__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.quantum-panel__execute-btn {
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.quantum-panel__control-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.quantum-panel__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error message */
+.quantum-panel__error {
+  padding: 0.75rem;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 4px;
+  color: #f87171;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* Results section */
+.quantum-panel__results {
+  margin-bottom: 1rem;
+}
+
+/* Bonus indicator */
+.quantum-panel__bonus {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(99, 102, 241, 0.1));
+  border: 1px solid var(--color-quantum-accent);
+  border-radius: 4px;
+  margin-top: 0.75rem;
+  animation: bonus-pulse 2s ease-in-out;
+}
+
+@keyframes bonus-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(6, 182, 212, 0.2);
+  }
+}
+
+.quantum-panel__bonus-badge {
+  background: var(--color-quantum-accent);
+  color: var(--color-bg);
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.quantum-panel__bonus-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.quantum-panel__bonus-text strong {
+  color: var(--color-quantum-accent);
+  font-size: 0.875rem;
+}
+
+.quantum-panel__bonus-text span {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* Tips section */
+.quantum-panel__tips {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+
+.quantum-panel__tips h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.75rem;
+  color: var(--color-text);
+}
+
+.quantum-panel__tips ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.quantum-panel__tips li {
+  margin-bottom: 0.25rem;
+}
+
+.quantum-panel__tips strong {
+  color: var(--color-quantum-primary);
+}
+
+/* Override web_qc_builder styles for dark theme */
+.quantum-panel .gate-palette {
+  background: transparent;
+}
+
+.quantum-panel .gate-palette h2,
+.quantum-panel .gate-palette h3 {
+  color: var(--color-text);
+}
+
+.quantum-panel .gate-category {
+  margin-bottom: 0.5rem;
+}
+
+.quantum-panel .category-name {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.quantum-panel .gate-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.quantum-panel .gate-button {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+  transition: all 0.15s;
+}
+
+.quantum-panel .gate-button:hover {
+  border-color: var(--color-quantum-primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.quantum-panel .gate-button.selected {
+  border-color: var(--color-quantum-primary);
+  background: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.quantum-panel .gate-symbol {
+  font-weight: bold;
+  font-size: 0.875rem;
+  color: var(--gate-color, var(--color-text));
+}
+
+.quantum-panel .gate-name {
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+}
+
+/* Results panel overrides */
+.quantum-panel .results-panel {
+  background: transparent;
+  padding: 0;
+}
+
+.quantum-panel .histogram-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.quantum-panel .histogram-label {
+  font-family: monospace;
+  min-width: 60px;
+  color: var(--color-text);
+}
+
+.quantum-panel .histogram-bar-wrapper {
+  flex: 1;
+  height: 16px;
+  background: var(--color-bg);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.quantum-panel .histogram-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.quantum-panel .histogram-value {
+  min-width: 80px;
+  text-align: right;
+  color: var(--color-text-muted);
+  font-family: monospace;
+}
