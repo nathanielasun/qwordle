@@ -12,6 +12,7 @@ agents.md
 
 # testing
 /coverage
+bundle-stats.html
 
 # next.js
 /.next/

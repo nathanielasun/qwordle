@@ -13,6 +13,9 @@ export const calculateGuesses = (n: number): number => BASE_GUESSES + Math.ceil(
 // Quantum measurement shots
 export const MEASUREMENT_SHOTS = 1024;
 
+// Quantum usage earning: correct letters needed per quantum circuit usage
+export const CORRECT_LETTERS_PER_QUANTUM_USAGE = 4;
+
 // Word length
 export const WORD_LENGTH = 5;
 

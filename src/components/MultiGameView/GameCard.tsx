@@ -2,6 +2,7 @@
  * GameCard - Compact display of a single game within the multi-game view
  */
 
+import { useEffect, useState, useRef } from 'react';
 import { WordleRow } from '../WordleGrid';
 import { SingleGame } from '../../types';
 
@@ -10,6 +11,15 @@ interface GameCardProps {
   currentInput: string;
   isActive: boolean;
   hasBonus?: boolean;
+}
+
+// Track previous input length to detect new letters
+function usePreviousInputLength(value: string) {
+  const ref = useRef(0);
+  useEffect(() => {
+    ref.current = value.length;
+  }, [value]);
+  return ref.current;
 }
 
 export function GameCard({
@@ -22,6 +32,26 @@ export function GameCard({
   const totalGuesses = maxGuesses + bonusGuesses;
   const remainingGuesses = totalGuesses - guesses.length;
 
+  // Track the revealing row for animations
+  const [revealingRow, setRevealingRow] = useState<number | null>(null);
+  const previousGuessCount = useRef(guesses.length);
+  const previousInputLength = usePreviousInputLength(currentInput);
+
+  // When a new guess is added, trigger reveal animation
+  useEffect(() => {
+    if (guesses.length > previousGuessCount.current) {
+      const newRow = guesses.length - 1;
+      setRevealingRow(newRow);
+      // Clear revealing state after animation completes
+      const timer = setTimeout(() => setRevealingRow(null), 1500);
+      previousGuessCount.current = guesses.length;
+      return () => clearTimeout(timer);
+    }
+  }, [guesses.length]);
+
+  // Determine if this game just won (for win animation)
+  const justWon = status === 'won' && revealingRow === guesses.length - 1;
+
   // Determine card styling based on status
   const statusClass =
     status === 'won' ? 'game-card--won' :
@@ -29,8 +59,22 @@ export function GameCard({
 
   const bonusClass = hasBonus ? 'game-card--bonus' : '';
 
+  // Generate ARIA label for the game card
+  const getCardAriaLabel = () => {
+    const stateLabel = `Quantum state ${binaryLabel}`;
+    const statusLabel =
+      status === 'won' ? 'Won' :
+      status === 'lost' ? `Lost, answer was ${targetWord}` :
+      `${remainingGuesses} guesses remaining`;
+    return `${stateLabel}, Game ${id}, ${statusLabel}`;
+  };
+
   return (
-    <div className={`game-card ${statusClass} ${bonusClass} flex flex-col`}>
+    <div
+      className={`game-card ${statusClass} ${bonusClass} flex flex-col`}
+      role="region"
+      aria-label={getCardAriaLabel()}
+    >
       {/* Header with quantum state label */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -64,6 +108,8 @@ export function GameCard({
         {Array.from({ length: totalGuesses }).map((_, rowIndex) => {
           const guess = guesses[rowIndex];
           const isCurrentRow = rowIndex === guesses.length && status === 'playing';
+          const isRevealing = revealingRow === rowIndex;
+          const isWinningRow = justWon && rowIndex === guesses.length - 1;
 
           return (
             <WordleRow
@@ -71,6 +117,9 @@ export function GameCard({
               tiles={guess?.evaluation}
               currentInput={isCurrentRow && isActive ? currentInput : ''}
               size="sm"
+              isRevealing={isRevealing}
+              isWinningRow={isWinningRow}
+              previousInputLength={isCurrentRow ? previousInputLength : 0}
             />
           );
         })}

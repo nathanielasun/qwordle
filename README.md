@@ -2,6 +2,8 @@
 
 A quantum-enhanced Wordle game where players simultaneously play 2^n Wordle games (n = 1-5) and use quantum circuit construction to earn bonus guesses through quantum measurement.
 
+**[Play QWordle](https://nathanielasun.github.io/qwordle/)**
+
 ## Game Concept
 
 ### Core Mechanics
@@ -13,12 +15,13 @@ A quantum-enhanced Wordle game where players simultaneously play 2^n Wordle game
 ### Quantum Integration
 The quantum aspect comes from how bonus guesses are distributed:
 
-1. **Build a Circuit**: Construct a quantum circuit with n qubits
-2. **Measure**: Run the circuit with 1024 shots
-3. **Collapse**: The most probable measurement outcome determines which game receives +1 bonus guess
-4. **Entanglement Metaphor**: Games correspond to quantum states (|00⟩, |01⟩, |10⟩, |11⟩ for n=2)
+1. **Earn Charges**: Get correct letters (green tiles) to earn quantum charges (4 letters = 1 charge)
+2. **Build a Circuit**: Construct a quantum circuit with n qubits using the circuit builder
+3. **Measure**: Spend a charge to run the circuit with 1024 shots
+4. **Collapse**: The most probable measurement outcome determines which game receives +1 bonus guess
+5. **Entanglement Metaphor**: Games correspond to quantum states (|00⟩, |01⟩, |10⟩, |11⟩ for n=2)
 
-This creates a strategic element where players can use quantum concepts (superposition, entanglement) to influence which games get extra chances.
+This creates a strategic element where players can use quantum concepts (superposition, entanglement) to influence which games get extra chances, but must first earn the ability to use them through gameplay.
 
 ## Technology Stack
 
@@ -51,9 +54,10 @@ qwordle/
 │   │   ├── Keyboard/           # Virtual keyboard
 │   │   │   └── Keyboard.tsx
 │   │   └── shared/             # Reusable UI components
-│   │       ├── Modal.tsx
-│   │       ├── Button.tsx
-│   │       └── HelpModal.tsx
+│   │       ├── Modal.tsx           # Reusable modal component
+│   │       ├── HelpModal.tsx       # Game instructions
+│   │       ├── GameOverModal.tsx   # End-game statistics
+│   │       └── Toast.tsx           # Notification toast
 │   ├── hooks/
 │   │   ├── useWordle.ts        # Single game logic
 │   │   ├── useMultiWordle.ts   # Multi-game orchestration
@@ -65,7 +69,11 @@ qwordle/
 │   ├── utils/
 │   │   ├── wordValidation.ts   # Word dictionary operations
 │   │   ├── colorLogic.ts       # Tile evaluation algorithm
-│   │   └── keyboardState.ts    # Keyboard coloring logic
+│   │   ├── keyboardState.ts    # Keyboard coloring logic
+│   │   ├── localStorage.ts     # Lifetime stats persistence
+│   │   └── webglSupport.ts     # WebGL detection for TensorFlow.js
+│   ├── test/
+│   │   └── setup.ts            # Vitest test setup and mocks
 │   ├── types/
 │   │   ├── game.ts             # Game type definitions
 │   │   └── index.ts            # Type exports
@@ -83,9 +91,14 @@ qwordle/
 │   └── 05-implementation-phases.md
 ├── words.csv                   # Source word list
 ├── generate_words.py           # Word list generator
+├── .github/
+│   └── workflows/
+│       ├── ci.yml              # CI workflow (lint, test, build)
+│       └── deploy.yml          # GitHub Pages deployment
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
+├── vitest.config.ts            # Vitest test configuration
 ├── tailwind.config.js
 └── README.md
 ```
@@ -103,10 +116,16 @@ qwordle/
     "zustand": "^4.4.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.0",
     "@types/react": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
+    "jsdom": "^27.4.0",
+    "rollup-plugin-visualizer": "^6.0.0",
     "typescript": "^5.3.0",
     "vite": "^5.0.0",
+    "vitest": "^1.1.0",
     "tailwindcss": "^3.4.0",
     "postcss": "^8.4.0",
     "autoprefixer": "^10.4.0"
@@ -164,20 +183,27 @@ qwordle/
    - ⬛ **Gray**: Letter is not in the word
 4. Continue guessing until you win or run out of guesses for each game
 
-### Quantum Bonuses
-1. Open the Quantum Panel
-2. Build a circuit using available gates:
+### Quantum Charges
+Players must **earn** quantum charges by getting correct letters (green tiles):
+- Every **4 correct letters** (across all games) = **1 quantum charge**
+- Charges accumulate as you play and can be used at any time
+- The quantum panel is locked until you have at least 1 charge
+
+### Using Quantum Bonuses
+1. Earn quantum charges by guessing correct letters
+2. Once unlocked, build a circuit using available gates:
    - **H** (Hadamard): Creates superposition
    - **X** (Pauli-X): Bit flip
    - **CNOT**: Entangles qubits
    - And more...
-3. Click "Measure" to run 1024 shots
+3. Click "Measure" to spend 1 charge and run 1024 shots
 4. The game corresponding to the most probable outcome receives +1 bonus guess
 
 ### Strategy Tips
 - Use Hadamard gates on all qubits for equal distribution
 - Use X gates to deterministically target a specific game
 - Create entangled states (Bell states) to limit outcomes to specific games
+- Save your quantum charges for games that are running low on guesses
 - Balance your circuit strategy based on which games need extra help
 
 ## Game Rules Reference
@@ -186,6 +212,7 @@ qwordle/
 |-----------|---------|---------------|
 | Number of Games | 2^n | 4 games |
 | Base Guesses | 5 + ⌈n/2⌉ | 6 guesses |
+| Correct Letters per Charge | 4 | 4 letters |
 | Measurement Shots | 1024 | 1024 |
 | Bonus per Measurement | +1 guess | +1 guess |
 
@@ -193,11 +220,14 @@ qwordle/
 
 ### Available Scripts
 ```bash
-npm run dev       # Start development server
-npm run build     # Build for production
-npm run preview   # Preview production build
-npm run lint      # Run ESLint
-npm run test      # Run tests
+npm run dev           # Start development server
+npm run build         # Build for production
+npm run build:analyze # Build with bundle analysis (outputs bundle-stats.html)
+npm run preview       # Preview production build
+npm run lint          # Run ESLint
+npm run test          # Run tests in watch mode
+npm run test:run      # Run tests once
+npm run test:coverage # Run tests with coverage report
 ```
 
 ### Build Configuration
@@ -214,6 +244,43 @@ resolve: {
 }
 ```
 
+## Deployment
+
+### Live Site
+The game is deployed at: **https://nathanielasun.github.io/qwordle/**
+
+### GitHub Pages Setup
+The project uses GitHub Actions for automatic deployment:
+
+1. **CI Workflow** (`.github/workflows/ci.yml`):
+   - Runs on all PRs and pushes to main
+   - Executes linter, tests, and build
+
+2. **Deploy Workflow** (`.github/workflows/deploy.yml`):
+   - Triggers on push to main
+   - Builds the project and deploys to GitHub Pages
+
+### Manual Deployment
+To deploy manually:
+
+1. **Build for production**:
+   ```bash
+   NODE_ENV=production npm run build
+   ```
+
+2. **Preview locally**:
+   ```bash
+   npm run preview
+   ```
+
+3. The `dist/` folder contains the production build ready for deployment.
+
+### Enabling GitHub Pages
+To enable GitHub Pages for your fork:
+1. Go to your repository Settings → Pages
+2. Under "Build and deployment", select "GitHub Actions"
+3. Push to main branch to trigger deployment
+
 ## Implementation Status
 
 | Phase | Status | Description |
@@ -222,20 +289,54 @@ resolve: {
 | Phase 1 | ✅ Complete | Single-game Wordle mechanics |
 | Phase 2 | ✅ Complete | Multi-game system (2^n games) |
 | Phase 3 | ✅ Complete | Quantum circuit integration |
-| Phase 4 | 🔜 Pending | Polish & UX |
-| Phase 5 | 🔜 Pending | Testing & Optimization |
-| Phase 6 | 🔜 Pending | Deployment |
+| Phase 4 | ✅ Complete | Polish & UX |
+| Phase 5 | ✅ Complete | Testing & Optimization |
+| Phase 6 | ✅ Complete | Deployment |
 
-### Phase 3 Features (Current)
+### Phase 6 Features (Current)
+- **GitHub Pages Deployment**: Automatic deployment on push to main
+- **CI/CD Pipeline**: GitHub Actions workflow for testing and deployment
+  - Runs linter, tests, and build on all PRs
+  - Auto-deploys to GitHub Pages on merge to main
+- **Production Build Optimization**: Configured base path for GitHub Pages hosting
+
+### Phase 5 Features
+- **Testing Infrastructure**: Vitest with React Testing Library and jsdom
+- **Unit Test Coverage**: 82 tests covering:
+  - Word validation utilities
+  - Guess evaluation (color logic) with duplicate letter handling
+  - Game state transitions (Zustand store)
+  - LocalStorage persistence
+- **Performance Optimization**:
+  - React.memo on WordleTile and Keyboard components
+  - useCallback for keyboard event handlers
+- **Bundle Analysis**: rollup-plugin-visualizer for build size monitoring
+- **WebGL Support Detection**: Browser compatibility checking for TensorFlow.js GPU acceleration
+
+### Phase 4 Features
+- **Animations**: Tile flip reveal animation, win celebration bounce, pop animation for new letters
+- **Help Modal**: Comprehensive instructions accessible from header
+- **Game Over Modal**: Detailed end-game summary with session and lifetime statistics
+- **LocalStorage Persistence**: Lifetime stats tracked across sessions (win rate, perfect games, streaks)
+- **Accessibility**: ARIA labels for tiles, keyboard keys, and game cards
+- **Toast Notifications**: Visual feedback for errors, quantum charge earned, and bonus guesses granted
+- **Responsive modals**: ESC key to close, click outside to dismiss
+
+### Phase 3 Features
 - Full quantum circuit builder integration using web_qc_builder components
 - Interactive gate palette with standard quantum gates (H, X, Y, Z, CNOT, etc.)
 - Visual circuit canvas for building and editing circuits
 - Circuit execution via qcjs quantum simulator
 - 1024-shot measurement with probability distribution display
 - Bonus guess system: most probable measurement outcome grants +1 guess to corresponding game
+- **Quantum charge system**: Players must earn charges by getting correct letters
+  - 4 correct letters (green tiles) = 1 quantum charge
+  - Quantum panel locked until charges are available
+  - Progress bar shows advancement toward next charge
 - Real-time results panel showing measurement histogram
 - Undo/redo support for circuit editing
 - Quick tips section explaining quantum gate effects
+- Quantum panel positioned below game grid for better UX flow
 
 ### Phase 2 Features
 - Play 2^n simultaneous Wordle games (2, 4, 8, 16, or 32)

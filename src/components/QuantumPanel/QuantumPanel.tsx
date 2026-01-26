@@ -2,18 +2,23 @@
  * QuantumPanel - Quantum circuit builder interface for QWordle
  *
  * Allows players to build quantum circuits and measure them to earn
- * bonus guesses for specific games.
+ * bonus guesses for specific games. Players must earn quantum charges
+ * by getting correct letters (green tiles) in their guesses.
  */
 
 import { useState } from 'react';
 import { CircuitCanvas, GatePalette, ResultsPanel } from '@qc-builder/components';
 import { useQWordleQuantum } from '../../quantum/useQWordleQuantum';
+import { CORRECT_LETTERS_PER_QUANTUM_USAGE } from '../../constants/config';
 
 interface QuantumPanelProps {
   numQubits: number;
   onBonusGranted: (gameIndex: number) => void;
   gameLabels: string[]; // Binary labels for each game (e.g., ['00', '01', '10', '11'])
   disabled?: boolean;
+  quantumUsagesAvailable: number;
+  onUseQuantumCharge: () => boolean;
+  totalCorrectLetters: number;
 }
 
 export function QuantumPanel({
@@ -21,11 +26,18 @@ export function QuantumPanel({
   onBonusGranted,
   gameLabels,
   disabled = false,
+  quantumUsagesAvailable,
+  onUseQuantumCharge,
+  totalCorrectLetters,
 }: QuantumPanelProps) {
   const quantum = useQWordleQuantum(numQubits, onBonusGranted);
   const [selectedGate, setSelectedGate] = useState<string | null>(null);
   const [selectedInstances, setSelectedInstances] = useState<Set<string>>(new Set());
   const [isExpanded, setIsExpanded] = useState(true);
+
+  // Panel is locked if no quantum charges are available
+  const isLocked = quantumUsagesAvailable <= 0;
+  const progressToNext = totalCorrectLetters % CORRECT_LETTERS_PER_QUANTUM_USAGE;
 
   const handleGateAdd = (
     gateId: string,
@@ -34,6 +46,7 @@ export function QuantumPanel({
     control?: number,
     _controls?: number[]
   ) => {
+    if (isLocked) return;
     quantum.addGate(gateId, target, column, control);
     setSelectedGate(null);
   };
@@ -49,7 +62,15 @@ export function QuantumPanel({
   };
 
   const handleExecute = async () => {
-    if (disabled) return;
+    if (disabled || isLocked) return;
+
+    // Try to use a quantum charge
+    const success = onUseQuantumCharge();
+    if (!success) {
+      console.warn('No quantum charges available');
+      return;
+    }
+
     await quantum.executeCircuit();
   };
 
@@ -67,7 +88,7 @@ export function QuantumPanel({
   };
 
   return (
-    <div className={`quantum-panel ${disabled ? 'quantum-panel--disabled' : ''}`}>
+    <div className={`quantum-panel ${disabled ? 'quantum-panel--disabled' : ''} ${isLocked ? 'quantum-panel--locked' : ''}`}>
       {/* Header */}
       <div
         className="quantum-panel__header"
@@ -76,14 +97,41 @@ export function QuantumPanel({
         <h3 className="quantum-panel__title">
           <span className="quantum-panel__icon">{isExpanded ? '▼' : '▶'}</span>
           Quantum Circuit Builder
+          {isLocked && <span className="quantum-panel__locked-badge">LOCKED</span>}
         </h3>
         <p className="quantum-panel__subtitle">
-          Build a circuit to earn bonus guesses
+          {isLocked
+            ? `Get ${CORRECT_LETTERS_PER_QUANTUM_USAGE - progressToNext} more correct letters to unlock`
+            : `${quantumUsagesAvailable} charge${quantumUsagesAvailable !== 1 ? 's' : ''} available`}
         </p>
       </div>
 
       {isExpanded && (
         <div className="quantum-panel__content">
+          {/* Locked overlay */}
+          {isLocked && (
+            <div className="quantum-panel__locked-overlay">
+              <div className="quantum-panel__locked-message">
+                <div className="quantum-panel__locked-icon">🔒</div>
+                <h4>Quantum Charges Required</h4>
+                <p>
+                  Earn charges by getting correct letters (green tiles).
+                  <br />
+                  <strong>{CORRECT_LETTERS_PER_QUANTUM_USAGE} correct letters = 1 quantum charge</strong>
+                </p>
+                <div className="quantum-panel__progress-bar">
+                  <div
+                    className="quantum-panel__progress-fill"
+                    style={{ width: `${(progressToNext / CORRECT_LETTERS_PER_QUANTUM_USAGE) * 100}%` }}
+                  />
+                </div>
+                <p className="quantum-panel__progress-text">
+                  {progressToNext}/{CORRECT_LETTERS_PER_QUANTUM_USAGE} letters toward next charge
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Description */}
           <div className="quantum-panel__description">
             <p>
@@ -92,11 +140,11 @@ export function QuantumPanel({
             </p>
           </div>
 
-          {/* Gate Palette */}
+          {/* Gate Palette - no scroll, show all */}
           <div className="quantum-panel__gates">
             <GatePalette
-              onGateSelect={setSelectedGate}
-              selectedGate={selectedGate}
+              onGateSelect={isLocked ? () => {} : setSelectedGate}
+              selectedGate={isLocked ? null : selectedGate}
             />
           </div>
 
@@ -105,14 +153,14 @@ export function QuantumPanel({
             <CircuitCanvas
               circuit={quantum.circuit}
               numColumns={quantum.numColumns}
-              selectedGate={selectedGate}
+              selectedGate={isLocked ? null : selectedGate}
               selectedPattern={null}
               selectedInstances={selectedInstances}
-              onGateAdd={handleGateAdd}
-              onGateMove={quantum.moveGate}
+              onGateAdd={isLocked ? () => {} : handleGateAdd}
+              onGateMove={isLocked ? () => {} : quantum.moveGate}
               onGateSelect={handleGateSelect}
               onMultiSelect={(ids) => setSelectedInstances(new Set(ids))}
-              onGateRemove={quantum.removeGate}
+              onGateRemove={isLocked ? () => {} : quantum.removeGate}
               onGateEdit={handleGateEdit}
             />
           </div>
@@ -122,15 +170,17 @@ export function QuantumPanel({
             <button
               className="btn btn--primary quantum-panel__execute-btn"
               onClick={handleExecute}
-              disabled={disabled || quantum.isExecuting || quantum.circuit.gates.length === 0}
+              disabled={disabled || isLocked || quantum.isExecuting || quantum.circuit.gates.length === 0}
             >
               {quantum.isExecuting ? (
                 <>
                   <span className="quantum-panel__spinner" />
                   Measuring...
                 </>
+              ) : isLocked ? (
+                '🔒 Locked'
               ) : (
-                'Measure Circuit'
+                `Measure Circuit (${quantumUsagesAvailable} charge${quantumUsagesAvailable !== 1 ? 's' : ''})`
               )}
             </button>
 
@@ -138,21 +188,21 @@ export function QuantumPanel({
               <button
                 className="btn btn--secondary"
                 onClick={quantum.resetCircuit}
-                disabled={disabled || quantum.circuit.gates.length === 0}
+                disabled={disabled || isLocked || quantum.circuit.gates.length === 0}
               >
                 Clear
               </button>
               <button
                 className="btn btn--secondary"
                 onClick={quantum.undo}
-                disabled={disabled || !quantum.canUndo}
+                disabled={disabled || isLocked || !quantum.canUndo}
               >
                 Undo
               </button>
               <button
                 className="btn btn--secondary"
                 onClick={quantum.redo}
-                disabled={disabled || !quantum.canRedo}
+                disabled={disabled || isLocked || !quantum.canRedo}
               >
                 Redo
               </button>
@@ -160,7 +210,7 @@ export function QuantumPanel({
                 <button
                   className="btn btn--danger"
                   onClick={handleDeleteSelected}
-                  disabled={disabled}
+                  disabled={disabled || isLocked}
                 >
                   Delete
                 </button>

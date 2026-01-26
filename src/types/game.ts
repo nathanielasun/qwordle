@@ -46,7 +46,7 @@ export interface MultiGameState {
   phase: GamePhase;
 }
 
-// Game statistics
+// Game statistics (single session)
 export interface GameStats {
   totalGames: number;
   gamesWon: number;
@@ -54,6 +54,26 @@ export interface GameStats {
   totalGuesses: number;
   bonusGuessesUsed: number;
   quantumMeasurements: number;
+}
+
+// Lifetime statistics (persisted to LocalStorage)
+export interface LifetimeStats {
+  sessionsPlayed: number;
+  totalGamesPlayed: number;
+  totalGamesWon: number;
+  totalGuesses: number;
+  totalBonusGuessesUsed: number;
+  totalQuantumMeasurements: number;
+  perfectGames: number; // Sessions where all games were won
+  bestWinStreak: number;
+  currentWinStreak: number;
+  lastPlayed: number; // Timestamp
+  // Per-qubit stats
+  statsByN: Record<number, {
+    sessionsPlayed: number;
+    gamesWon: number;
+    gamesPlayed: number;
+  }>;
 }
 
 // Guess submission result

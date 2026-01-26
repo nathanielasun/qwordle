@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MultiGameView } from './components/MultiGameView';
+import { HelpModal } from './components/shared';
 import { useGameStore } from './store';
 import { loadWordList, isWordListLoaded } from './utils/wordValidation';
 import { calculateGuesses } from './constants/config';
@@ -7,6 +8,7 @@ import { calculateGuesses } from './constants/config';
 function App() {
   const { phase, n, initializeGames, resetGame } = useGameStore();
   const [isLoading, setIsLoading] = useState(!isWordListLoaded());
+  const [showHelp, setShowHelp] = useState(false);
 
   // Load word list on mount
   useEffect(() => {
@@ -47,21 +49,46 @@ function App() {
           <h1 className="text-2xl font-bold">
             <span className="text-quantum-primary">Q</span>Wordle
           </h1>
-          {phase !== 'setup' && (
-            <div className="flex items-center gap-4 text-sm text-text-muted">
-              <span>n = {n}</span>
-              <span>{Math.pow(2, n)} games</span>
-              <span>{calculateGuesses(n)} guesses each</span>
-              <button
-                onClick={handleBackToSetup}
-                className="btn btn--secondary text-xs"
+          <div className="flex items-center gap-4">
+            {phase !== 'setup' && (
+              <div className="flex items-center gap-4 text-sm text-text-muted">
+                <span>n = {n}</span>
+                <span>{Math.pow(2, n)} games</span>
+                <span>{calculateGuesses(n)} guesses each</span>
+                <button
+                  onClick={handleBackToSetup}
+                  className="btn btn--secondary text-xs"
+                >
+                  New Game
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setShowHelp(true)}
+              className="text-text-muted hover:text-white transition-colors p-2"
+              aria-label="Help"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                New Game
-              </button>
-            </div>
-          )}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Help Modal */}
+      <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
       {/* Main content */}
       <main className="flex-1 flex items-center justify-center p-4">

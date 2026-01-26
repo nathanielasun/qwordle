@@ -5,6 +5,7 @@
 import { GameCard } from './GameCard';
 import { Keyboard } from '../Keyboard';
 import { QuantumPanel } from '../QuantumPanel';
+import { GameOverModal, Toast } from '../shared';
 import { useKeyboard } from '../../hooks';
 import { useGameStore } from '../../store';
 import { useEffect, useState, useMemo } from 'react';
@@ -17,6 +18,10 @@ interface MultiGameViewProps {
 export function MultiGameView({ onReset }: MultiGameViewProps) {
   const [isLoading, setIsLoading] = useState(!isWordListLoaded());
   const [isShaking, setIsShaking] = useState(false);
+  const [showGameOver, setShowGameOver] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [prevCharges, setPrevCharges] = useState(0);
 
   const {
     n,
@@ -27,11 +32,15 @@ export function MultiGameView({ onReset }: MultiGameViewProps) {
     keyStates,
     recentBonusGame,
     stats,
+    lifetimeStats,
+    totalCorrectLetters,
+    quantumUsagesAvailable,
     setCurrentGuess,
     submitGuess,
     clearError,
     resetGame,
     addBonusToGame,
+    useQuantumCharge,
   } = useGameStore();
 
   // Generate binary labels for each game (e.g., ['00', '01', '10', '11'] for n=2)
@@ -78,6 +87,33 @@ export function MultiGameView({ onReset }: MultiGameViewProps) {
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
+
+  // Show game over modal when game finishes
+  useEffect(() => {
+    if (phase === 'finished') {
+      // Delay slightly to let final animations complete
+      const timer = setTimeout(() => setShowGameOver(true), 1500);
+      return () => clearTimeout(timer);
+    } else {
+      setShowGameOver(false);
+    }
+  }, [phase]);
+
+  // Show success message when bonus is granted
+  useEffect(() => {
+    if (recentBonusGame !== null && games[recentBonusGame]) {
+      const game = games[recentBonusGame];
+      setSuccessMessage(`+1 bonus guess to game |${game.binaryLabel}⟩!`);
+    }
+  }, [recentBonusGame, games]);
+
+  // Show info message when quantum charge is earned
+  useEffect(() => {
+    if (quantumUsagesAvailable > prevCharges && prevCharges >= 0 && phase === 'playing') {
+      setInfoMessage(`Quantum charge earned! (${quantumUsagesAvailable} available)`);
+    }
+    setPrevCharges(quantumUsagesAvailable);
+  }, [quantumUsagesAvailable, prevCharges, phase]);
 
   // Physical keyboard support
   useKeyboard({
@@ -143,7 +179,7 @@ export function MultiGameView({ onReset }: MultiGameViewProps) {
       )}
 
       {/* Stats bar */}
-      <div className="flex items-center justify-center gap-6 text-sm">
+      <div className="flex items-center justify-center gap-6 text-sm flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-text-muted">Playing:</span>
           <span className="font-bold text-quantum-primary">{activeGames}</span>
@@ -160,23 +196,47 @@ export function MultiGameView({ onReset }: MultiGameViewProps) {
           <span className="text-text-muted">Guesses:</span>
           <span className="font-bold">{stats.totalGuesses}</span>
         </div>
+        {phase === 'playing' && (
+          <div className="flex items-center gap-2">
+            <span className="text-text-muted">Quantum Charges:</span>
+            <span className={`font-bold ${quantumUsagesAvailable > 0 ? 'text-quantum-accent' : 'text-text-muted'}`}>
+              {quantumUsagesAvailable}
+            </span>
+            <span className="text-xs text-text-muted">
+              ({totalCorrectLetters % 4}/4 to next)
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Quantum Circuit Panel */}
-      {phase === 'playing' && (
-        <QuantumPanel
-          numQubits={n}
-          onBonusGranted={addBonusToGame}
-          gameLabels={gameLabels}
-          disabled={phase !== 'playing'}
+      {/* Error Toast */}
+      {errorMessage && phase === 'playing' && (
+        <Toast
+          message={errorMessage}
+          type="error"
+          duration={2000}
+          onClose={clearError}
         />
       )}
 
-      {/* Error message */}
-      {errorMessage && phase === 'playing' && (
-        <div className="text-center text-red-400 text-sm font-medium animate-shake">
-          {errorMessage}
-        </div>
+      {/* Success Toast */}
+      {successMessage && (
+        <Toast
+          message={successMessage}
+          type="success"
+          duration={3000}
+          onClose={() => setSuccessMessage(null)}
+        />
+      )}
+
+      {/* Info Toast */}
+      {infoMessage && (
+        <Toast
+          message={infoMessage}
+          type="info"
+          duration={2500}
+          onClose={() => setInfoMessage(null)}
+        />
       )}
 
       {/* Current input display */}
@@ -227,6 +287,31 @@ export function MultiGameView({ onReset }: MultiGameViewProps) {
           disabled={phase !== 'playing'}
         />
       </div>
+
+      {/* Quantum Circuit Panel - below everything else */}
+      {phase === 'playing' && (
+        <QuantumPanel
+          numQubits={n}
+          onBonusGranted={addBonusToGame}
+          gameLabels={gameLabels}
+          disabled={phase !== 'playing'}
+          quantumUsagesAvailable={quantumUsagesAvailable}
+          onUseQuantumCharge={useQuantumCharge}
+          totalCorrectLetters={totalCorrectLetters}
+        />
+      )}
+
+      {/* Game Over Modal */}
+      <GameOverModal
+        isOpen={showGameOver}
+        onClose={() => setShowGameOver(false)}
+        onPlayAgain={resetGame}
+        onChangeSettings={onReset}
+        games={games}
+        stats={stats}
+        lifetimeStats={lifetimeStats}
+        n={n}
+      />
     </div>
   );
 }

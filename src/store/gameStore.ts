@@ -9,11 +9,13 @@ import type {
   Guess,
   GameStats,
   KeyState,
+  LifetimeStats,
 } from '../types';
 import { evaluateGuess, isCorrectGuess } from '../utils/colorLogic';
 import { aggregateKeyStates } from '../utils/keyboardState';
 import { getRandomWords, validateInput } from '../utils/wordValidation';
-import { calculateGuesses } from '../constants/config';
+import { loadLifetimeStats, updateLifetimeStats } from '../utils/localStorage';
+import { calculateGuesses, CORRECT_LETTERS_PER_QUANTUM_USAGE } from '../constants/config';
 
 interface GameState {
   // Game configuration
@@ -38,13 +40,23 @@ interface GameState {
   // Computed values
   keyStates: Record<string, KeyState>;
 
+  // Quantum usage system
+  totalCorrectLetters: number;       // Total correct (green) letters earned across all games
+  quantumUsagesAvailable: number;    // Number of quantum circuit usages available
+  quantumUsagesUsed: number;         // Number of quantum circuit usages consumed
+
+  // Lifetime statistics
+  lifetimeStats: LifetimeStats;
+
   // Actions
   initializeGames: (n: number) => void;
   setCurrentGuess: (guess: string) => void;
   submitGuess: () => void;
   addBonusToGame: (gameIndex: number) => void;
+  useQuantumCharge: () => boolean;   // Use a quantum charge, returns true if successful
   resetGame: () => void;
   clearError: () => void;
+  refreshLifetimeStats: () => void;  // Reload stats from localStorage
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -64,6 +76,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   recentBonusGame: null,
   keyStates: {},
+  totalCorrectLetters: 0,
+  quantumUsagesAvailable: 0,
+  quantumUsagesUsed: 0,
+  lifetimeStats: loadLifetimeStats(),
 
   // Initialize games with random words
   initializeGames: (n: number) => {
@@ -105,6 +121,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       errorMessage: null,
       recentBonusGame: null,
       keyStates: {},
+      totalCorrectLetters: 0,
+      quantumUsagesAvailable: 0,
+      quantumUsagesUsed: 0,
       stats: {
         totalGames: numGames,
         gamesWon: 0,
@@ -126,7 +145,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Submit guess to all active games
   submitGuess: () => {
-    const { currentGuess, games, stats } = get();
+    const { currentGuess, games, stats, totalCorrectLetters, quantumUsagesAvailable } = get();
 
     // Validate input
     const validation = validateInput(currentGuess);
@@ -138,6 +157,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const word = validation.word!;
     const timestamp = Date.now();
 
+    // Track new correct letters from this guess
+    let newCorrectLetters = 0;
+
     // Apply guess to all active games
     const updatedGames = games.map((game) => {
       if (game.status !== 'playing') return game;
@@ -147,6 +169,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const evaluation = evaluateGuess(word, game.targetWord);
       const newGuess: Guess = { word, evaluation, timestamp };
+
+      // Count correct letters (green tiles) from this guess for this game
+      const correctInThisGuess = evaluation.filter(e => e.state === 'correct').length;
+      newCorrectLetters += correctInThisGuess;
 
       const isWin = isCorrectGuess(evaluation);
       const guessCount = game.guesses.length + 1;
@@ -167,19 +193,57 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Update keyboard states
     const keyStates = aggregateKeyStates(updatedGames);
 
+    // Calculate new quantum usages earned
+    const newTotalCorrect = totalCorrectLetters + newCorrectLetters;
+    const previousUsagesEarned = Math.floor(totalCorrectLetters / CORRECT_LETTERS_PER_QUANTUM_USAGE);
+    const newUsagesEarned = Math.floor(newTotalCorrect / CORRECT_LETTERS_PER_QUANTUM_USAGE);
+    const usagesGained = newUsagesEarned - previousUsagesEarned;
+
+    const updatedStats = {
+      ...stats,
+      totalGuesses: stats.totalGuesses + 1,
+      gamesWon,
+      gamesLost,
+    };
+
+    // Update lifetime stats if game just finished
+    let newLifetimeStats = get().lifetimeStats;
+    if (allFinished) {
+      newLifetimeStats = updateLifetimeStats(
+        updatedStats,
+        get().n,
+        gamesWon,
+        updatedGames.length
+      );
+    }
+
     set({
       games: updatedGames,
       currentGuess: '',
       errorMessage: null,
       phase: allFinished ? 'finished' : 'playing',
       keyStates,
-      stats: {
-        ...stats,
-        totalGuesses: stats.totalGuesses + 1,
-        gamesWon,
-        gamesLost,
-      },
+      totalCorrectLetters: newTotalCorrect,
+      quantumUsagesAvailable: quantumUsagesAvailable + usagesGained,
+      stats: updatedStats,
+      lifetimeStats: newLifetimeStats,
     });
+  },
+
+  // Use a quantum charge (returns true if successful)
+  useQuantumCharge: () => {
+    const { quantumUsagesAvailable, quantumUsagesUsed } = get();
+
+    if (quantumUsagesAvailable <= 0) {
+      return false;
+    }
+
+    set({
+      quantumUsagesAvailable: quantumUsagesAvailable - 1,
+      quantumUsagesUsed: quantumUsagesUsed + 1,
+    });
+
+    return true;
   },
 
   // Add bonus guess to a specific game
@@ -222,11 +286,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       errorMessage: null,
       recentBonusGame: null,
       keyStates: {},
+      totalCorrectLetters: 0,
+      quantumUsagesAvailable: 0,
+      quantumUsagesUsed: 0,
+      lifetimeStats: loadLifetimeStats(), // Refresh from localStorage
     });
   },
 
   // Clear error message
   clearError: () => {
     set({ errorMessage: null });
+  },
+
+  // Refresh lifetime stats from localStorage
+  refreshLifetimeStats: () => {
+    set({ lifetimeStats: loadLifetimeStats() });
   },
 }));
