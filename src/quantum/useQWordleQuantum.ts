@@ -5,7 +5,7 @@
  * to provide a simplified interface for the QWordle game's bonus system.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useCircuitState, useQuantumSimulator } from '@qc-builder/hooks';
 import type { ExecutionResults } from '@qc-builder/types/circuit';
 import { MEASUREMENT_SHOTS } from '../constants/config';
@@ -54,6 +54,17 @@ export function useQWordleQuantum(
   // Use the web_qc_builder hooks
   const circuitState = useCircuitState(numQubits);
   const simulator = useQuantumSimulator();
+
+  // Sync circuit numQubits with prop when it changes (e.g., starting new game)
+  // This is needed because useCircuitState may load from localStorage with a different numQubits
+  useEffect(() => {
+    if (circuitState.circuit.numQubits !== numQubits) {
+      circuitState.setNumQubits(numQubits);
+      // Clear the circuit when qubit count changes to avoid confusion
+      circuitState.clearCircuit();
+      simulator.reset();
+    }
+  }, [numQubits, circuitState, simulator]);
 
   // QWordle-specific state
   const [lastBonusGameIndex, setLastBonusGameIndex] = useState<number | null>(null);
